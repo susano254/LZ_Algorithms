@@ -56,6 +56,10 @@ public class MainActivity extends AppCompatActivity {
         } catch (URISyntaxException e) {}
     }
 
+    // all the code for the webview is in onCreate method of MainActivity
+    // don't forget to also add the internet permission in the AndroidManifest.xml file and the Webview in the xml layout file
+    // the code is a bit long, but it's mostly the JavaScript code that is being executed in the WebView
+    // the JavaScript code is responsible for compressing and decompressing the data using lzutf8 (same library of node.js)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -140,8 +144,8 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-
         webView.loadDataWithBaseURL(null, htmlData, "text/html", "UTF-8", null);
+
 
         progressBar = findViewById(R.id.compressingScreen);
         recyclerView = findViewById(R.id.recyclerView);
