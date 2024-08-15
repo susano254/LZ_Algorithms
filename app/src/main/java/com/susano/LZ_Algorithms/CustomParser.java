@@ -33,21 +33,6 @@ public class CustomParser implements Parser {
     private boolean isPageLoaded = false;
     private static final String TAG = "CustomParser";
     static WebView webView;
-    static Packet packet;
-
-
-
-//    public Parser.Encoder encoder = new Parser.Encoder() {
-//        @Override
-//        public void encode(Packet obj, Callback callback) {
-//            String packetJSON = packetToJSON(obj);
-//            // convert to byte array
-//            byte[] encoded = packetJSON.getBytes(StandardCharsets.UTF_8);
-//            Log.d(TAG, "Encoded: " + Arrays.toString(encoded));
-//            Log.d(TAG, Arrays.toString(new Object[]{encoded}));
-//            callback.call(new Object[]{encoded});
-//        }
-//    };
 
     final public static class Encoder implements Parser.Encoder {
         @Override
@@ -124,70 +109,6 @@ public class CustomParser implements Parser {
             this.onDecodedCallback = callback;
         }
     }
-
-//    public Parser.Decoder decoder = new Parser.Decoder() {
-//        @Override
-//        public void add(String obj) {
-//            Log.d(TAG, "Decoded: " + obj);
-//        }
-//
-//        @Override
-//        public void add(byte[] obj) {
-//            CountDownLatch latch = new CountDownLatch(1);
-//            Log.d(TAG, "Decoded: " + Arrays.toString(obj));
-//            new Handler(Looper.getMainLooper()).post(() -> {
-//                webView.evaluateJavascript("decompressData(new Uint8Array(" + Arrays.toString(obj) + "))", value -> {
-//                    Log.d(TAG, "Decoded Packet: " + value);
-//                    lzCallBack(value);
-//                    latch.countDown();
-//                });
-//            });
-//
-//            try {
-//                latch.await();
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
-//            Log.d(TAG, "Finished Decoding Packet");
-//
-//            if(isPacketValid(packet)) {
-//                Emitter emitter = new Emitter();
-//                emitter.emit("decoded", packet);
-//                onDecoded(packet1 -> {
-//                    Log.d(TAG, "Packet: " + packet1.type + " " + packet1.data + " " + packet1.nsp);
-//                });
-//            }
-//        }
-//
-//        void lzCallBack(String json) {
-//            // remove starting and ending double quotes
-//            json = json.substring(1, json.length() - 1);
-//            // Unescape JSON string using org.json.JSONObject unescaping
-//            json = json.replace("\\\"", "\"")
-//                    .replace("\\\\", "\\");
-//
-//            ObjectMapper objectMapper = new ObjectMapper();
-//            try {
-//                packet = objectMapper.readValue(json, Packet.class);
-//            } catch (JsonProcessingException e) {
-//                e.printStackTrace();
-//            }
-//        }
-//
-//        @Override
-//        public void destroy() {
-//            Log.d(TAG, "Decoder Destroyed");
-//        }
-//
-//        @Override
-//        public void onDecoded(Callback callback) {
-//            Log.d(TAG, "onDecoded Callback");
-////            if(packet != null) {
-////                Log.d(TAG, "onDecoded Packet: " + packet.type + " " + packet.data + " " + packet.nsp);
-////                callback.call(packet);
-////            }
-//        }
-//    };
 
     // Load a simple HTML page that includes lzutf8
     String htmlData = "<html><body>" +

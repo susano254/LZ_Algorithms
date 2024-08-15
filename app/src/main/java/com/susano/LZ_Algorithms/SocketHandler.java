@@ -40,7 +40,7 @@ public class SocketHandler {
             // print the socket id
             Log.d("Socket.io", "Socket ID: " + mSocket.id());
             // Example: Join a room
-            mSocket.emit("sub", "{ room: 'some_room' }");
+            mSocket.emit("sub", "{ \"room\": \"some_room\" }");
         }
     };
 
