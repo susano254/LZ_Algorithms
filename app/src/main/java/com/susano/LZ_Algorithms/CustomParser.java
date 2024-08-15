@@ -9,27 +9,47 @@ import android.webkit.WebViewClient;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
+import io.socket.client.Manager;
 import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
+import io.socket.parser.IOParser;
 import io.socket.parser.Packet;
 import io.socket.parser.Parser;
 
-public class CustomParser {
+public class CustomParser implements Parser {
     private boolean isPageLoaded = false;
     private static final String TAG = "CustomParser";
-    WebView webView;
-    Packet packet;
+    static WebView webView;
+    static Packet packet;
 
-    public Parser.Encoder encoder = new Parser.Encoder() {
+
+
+//    public Parser.Encoder encoder = new Parser.Encoder() {
+//        @Override
+//        public void encode(Packet obj, Callback callback) {
+//            String packetJSON = packetToJSON(obj);
+//            // convert to byte array
+//            byte[] encoded = packetJSON.getBytes(StandardCharsets.UTF_8);
+//            Log.d(TAG, "Encoded: " + Arrays.toString(encoded));
+//            Log.d(TAG, Arrays.toString(new Object[]{encoded}));
+//            callback.call(new Object[]{encoded});
+//        }
+//    };
+
+    final public static class Encoder implements Parser.Encoder {
         @Override
         public void encode(Packet obj, Callback callback) {
             String packetJSON = packetToJSON(obj);
@@ -39,10 +59,12 @@ public class CustomParser {
             Log.d(TAG, Arrays.toString(new Object[]{encoded}));
             callback.call(new Object[]{encoded});
         }
-    };
+    }
 
 
-    public Parser.Decoder decoder = new Parser.Decoder() {
+    final public static class Decoder implements Parser.Decoder {
+        private IOParser.Decoder.Callback onDecodedCallback;
+        Packet packet;
         @Override
         public void add(String obj) {
             Log.d(TAG, "Decoded: " + obj);
@@ -70,9 +92,7 @@ public class CustomParser {
             if(isPacketValid(packet)) {
                 Emitter emitter = new Emitter();
                 emitter.emit("decoded", packet);
-                onDecoded(packet1 -> {
-                    Log.d(TAG, "Packet: " + packet1.type + " " + packet1.data + " " + packet1.nsp);
-                });
+                this.onDecodedCallback.call(packet);
             }
         }
 
@@ -82,10 +102,13 @@ public class CustomParser {
             // Unescape JSON string using org.json.JSONObject unescaping
             json = json.replace("\\\"", "\"")
                     .replace("\\\\", "\\");
-
             ObjectMapper objectMapper = new ObjectMapper();
             try {
                 packet = objectMapper.readValue(json, Packet.class);
+                if (packet.data instanceof LinkedHashMap) {
+                    // Convert LinkedHashMap back to JSONObject
+                    packet.data = new JSONObject((Map) packet.data);
+                }
             } catch (JsonProcessingException e) {
                 e.printStackTrace();
             }
@@ -98,13 +121,73 @@ public class CustomParser {
 
         @Override
         public void onDecoded(Callback callback) {
-            Log.d(TAG, "onDecoded Callback");
-//            if(packet != null) {
-//                Log.d(TAG, "onDecoded Packet: " + packet.type + " " + packet.data + " " + packet.nsp);
-//                callback.call(packet);
-//            }
+            this.onDecodedCallback = callback;
         }
-    };
+    }
+
+//    public Parser.Decoder decoder = new Parser.Decoder() {
+//        @Override
+//        public void add(String obj) {
+//            Log.d(TAG, "Decoded: " + obj);
+//        }
+//
+//        @Override
+//        public void add(byte[] obj) {
+//            CountDownLatch latch = new CountDownLatch(1);
+//            Log.d(TAG, "Decoded: " + Arrays.toString(obj));
+//            new Handler(Looper.getMainLooper()).post(() -> {
+//                webView.evaluateJavascript("decompressData(new Uint8Array(" + Arrays.toString(obj) + "))", value -> {
+//                    Log.d(TAG, "Decoded Packet: " + value);
+//                    lzCallBack(value);
+//                    latch.countDown();
+//                });
+//            });
+//
+//            try {
+//                latch.await();
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//            Log.d(TAG, "Finished Decoding Packet");
+//
+//            if(isPacketValid(packet)) {
+//                Emitter emitter = new Emitter();
+//                emitter.emit("decoded", packet);
+//                onDecoded(packet1 -> {
+//                    Log.d(TAG, "Packet: " + packet1.type + " " + packet1.data + " " + packet1.nsp);
+//                });
+//            }
+//        }
+//
+//        void lzCallBack(String json) {
+//            // remove starting and ending double quotes
+//            json = json.substring(1, json.length() - 1);
+//            // Unescape JSON string using org.json.JSONObject unescaping
+//            json = json.replace("\\\"", "\"")
+//                    .replace("\\\\", "\\");
+//
+//            ObjectMapper objectMapper = new ObjectMapper();
+//            try {
+//                packet = objectMapper.readValue(json, Packet.class);
+//            } catch (JsonProcessingException e) {
+//                e.printStackTrace();
+//            }
+//        }
+//
+//        @Override
+//        public void destroy() {
+//            Log.d(TAG, "Decoder Destroyed");
+//        }
+//
+//        @Override
+//        public void onDecoded(Callback callback) {
+//            Log.d(TAG, "onDecoded Callback");
+////            if(packet != null) {
+////                Log.d(TAG, "onDecoded Packet: " + packet.type + " " + packet.data + " " + packet.nsp);
+////                callback.call(packet);
+////            }
+//        }
+//    };
 
     // Load a simple HTML page that includes lzutf8
     String htmlData = "<html><body>" +
@@ -161,7 +244,17 @@ public class CustomParser {
         webView.destroy();
     }
 
-    public String packetToJSON(Packet packet){
+    public static String packetToJSON(Packet packet){
+        JSONArray dataArray = new JSONArray();
+        JSONObject dataObject = new JSONObject();
+
+        if(packet.data instanceof JSONArray) {
+            dataArray = (JSONArray) packet.data;
+            packet.data = null;
+        } else if(packet.data instanceof JSONObject) {
+            dataObject = (JSONObject) packet.data;
+            packet.data = null;
+        }
         ObjectMapper objectMapper = new ObjectMapper();
         // don't include null values
         objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
@@ -171,6 +264,19 @@ public class CustomParser {
             packetJSON = objectMapper.writeValueAsString(packet);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
+        }
+        if(dataArray.length() > 0) {
+            try {
+                packetJSON = new JSONObject(packetJSON).put("data", dataArray).toString();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else if(dataObject.length() > 0) {
+            try {
+                packetJSON = new JSONObject(packetJSON).put("data", dataObject).toString();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         return packetJSON;
