@@ -99,10 +99,10 @@ public class CustomParser {
         @Override
         public void onDecoded(Callback callback) {
             Log.d(TAG, "onDecoded Callback");
-            if(packet != null) {
-                Log.d(TAG, "onDecoded Packet: " + packet.type + " " + packet.data + " " + packet.nsp);
-                callback.call(packet);
-            }
+//            if(packet != null) {
+//                Log.d(TAG, "onDecoded Packet: " + packet.type + " " + packet.data + " " + packet.nsp);
+//                callback.call(packet);
+//            }
         }
     };
 

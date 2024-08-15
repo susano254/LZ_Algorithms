@@ -71,8 +71,8 @@ public class MainActivity extends AppCompatActivity {
             IO.Options options = new IO.Options();
             options.encoder = customParser.encoder;
             options.decoder = customParser.decoder;
-//            socketHandler = new SocketHandler(new URI("http://10.0.2.2:3001"), options);
-            socketHandler = new SocketHandler(new URI("https://oddssocketdev.bestlive.io/"), options);
+            socketHandler = new SocketHandler(new URI("http://10.0.2.2:3001"), options);
+//            socketHandler = new SocketHandler(new URI("https://oddssocketdev.bestlive.io/"), options);
             socketHandler.connect();
         } catch (URISyntaxException e) {
             e.printStackTrace();
