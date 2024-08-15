@@ -25,6 +25,7 @@ import com.google.android.material.textfield.TextInputEditText;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.concurrent.Executor;
@@ -32,6 +33,9 @@ import java.util.concurrent.Executors;
 import io.socket.client.IO;
 import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
+import io.socket.parser.Packet;
+import io.socket.parser.Parser;
+
 import java.net.URISyntaxException;
 
 public class MainActivity extends AppCompatActivity {
@@ -46,15 +50,8 @@ public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private boolean isPageLoaded = false;
-    private Socket mSocket;
     private static final String TAG = "MainActivity";
-
-
-    {
-        try {
-            mSocket = IO.socket("https://oddssocketdev.bestlive.io/");
-        } catch (URISyntaxException e) {}
-    }
+    private SocketHandler socketHandler;
 
     // all the code for the webview is in onCreate method of MainActivity
     // don't forget to also add the internet permission in the AndroidManifest.xml file and the Webview in the xml layout file
@@ -65,87 +62,21 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mSocket.connect();
-
-        // Load a simple HTML page that includes lzutf8
-        String htmlData = "<html><body>" +
-                "<script src='https://cdn.jsdelivr.net/npm/lzutf8/build/production/lzutf8.min.js'></script>" +
-                "<script>" +
-                "console.log('WebView JavaScript is running!');" +
-                "function compressData(data) {" +
-                "   try {" +
-                "       console.log('Compressing data: ' + data);" +
-                "       var compressed = LZUTF8.compress(data, { outputEncoding: 'ByteArray' });" +
-                "       console.log('Compressed data variable: ' + compressed);" +
-                "       console.log('Compressed data JSON: ' + JSON.stringify(compressed));" +
-                "       return compressed;" +
-                "   } catch (e) {" +
-                "       console.log('Error during compression: ' + e.message);" + // Log errors
-                "       return 'Error: ' + e.message;" +
-                "   }" +
-                "}" +
-                "var compressedData = compressData('This is a string that needs to be compressed');" +
-                "console.log('Compressed data: ' + compressedData);" +
-                "function decompressData(base64Data) {" +
-                "   try {" +
-                "       console.log('Decompressing data: ' + base64Data);" +
-                "       var decompressed = LZUTF8.decompress(base64Data, { inputEncoding: 'ByteArray' });" +
-                "       return JSON.stringify(decompressed);" +
-                "   } catch (e) {" +
-                "       console.log('Error during decompression: ' + e.message);" + // Log errors
-                "       return JSON.stringify('Error: ' + e.message);" +
-                "   }" +
-                "}" +
-                "var result = decompressData(compressedData);" +
-                "console.log('Decompressed data: ' + result);" +
-                "</script>" +
-                "</body></html>";
-
         // Initialize WebView and enable JavaScript
         webView = findViewById(R.id.webview);
-        webView.getSettings().setJavaScriptEnabled(true);
-        webView.setWebViewClient(new WebViewClient(){
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-                isPageLoaded = true;
-                Log.d(TAG, "Page finished loading");
 
-                String compressedData = "This is a string that needs to be compressed";
-                String script = "compressData('" + compressedData + "').toString()";
-                Log.d(TAG, "Script: " + script);
-
-                webView.evaluateJavascript(script, value -> {
-                    // 'value' will contain the compressed data
-                    Log.d(TAG, "Compressed data: " + value);
-
-                    // convert the string to array of bytes
-                    String[] parts = value.split(",");
-                    Log.d(TAG, "Compressed data parts: " + parts.length);
-
-                    ArrayList<Byte> compressedDataArray = new ArrayList<>();
-                    for (int i = 0; i < parts.length; i++) {
-                        // trim away double quotes
-                        parts[i] = parts[i].replace("\"", "");
-                        Log.d(TAG, "Compressed data part: " + parts[i]);
-                        compressedDataArray.add(Byte.parseByte(parts[i]));
-                    }
-                    Log.d(TAG, "Compressed data array: " + compressedDataArray);
-
-//                    String compressedScript = "console.log(new Uint8Array(" + compressedDataArray + ").length)";
-                    String decompressScript = "console.log(decompressData(new Uint8Array(" + compressedDataArray + ")))";
-                    Log.d(TAG, "Compressed script: " + decompressScript);
-                    webView.evaluateJavascript(decompressScript, value1 -> {
-                        Log.d(TAG, "Received value: " + value1);
-                    });
-
-                });
-
-            }
-        });
-
-        webView.loadDataWithBaseURL(null, htmlData, "text/html", "UTF-8", null);
-
+        // Initialize the socket handler
+        try {
+            CustomParser customParser = new CustomParser(webView);
+            IO.Options options = new IO.Options();
+            options.encoder = customParser.encoder;
+            options.decoder = customParser.decoder;
+//            socketHandler = new SocketHandler(new URI("http://10.0.2.2:3001"), options);
+            socketHandler = new SocketHandler(new URI("https://oddssocketdev.bestlive.io/"), options);
+            socketHandler.connect();
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
 
         progressBar = findViewById(R.id.compressingScreen);
         recyclerView = findViewById(R.id.recyclerView);
@@ -165,45 +96,9 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setAdapter(recyclerAdapter);
     }
 
-
-    private final Emitter.Listener onConnect = new Emitter.Listener() {
-        @Override
-        public void call(Object... args) {
-            Log.d(TAG, "Connected to server");
-            // Example: Join a room
-            mSocket.emit("sub", "{ room: 'some_room' }");
-        }
-    };
-
-    private final Emitter.Listener onDisconnect = new Emitter.Listener() {
-        @Override
-        public void call(Object... args) {
-            Log.d(TAG, "Disconnected from server");
-        }
-    };
-
-    private final Emitter.Listener onConnectError = new Emitter.Listener() {
-        @Override
-        public void call(Object... args) {
-            Log.e(TAG, "Connection error: " + args[0]);
-        }
-    };
-
-    private final Emitter.Listener onMessage = new Emitter.Listener() {
-        @Override
-        public void call(Object... args) {
-            Log.d(TAG, "Received message: " + args[0]);
-        }
-    };
-
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        mSocket.disconnect();
-        mSocket.off(Socket.EVENT_CONNECT, onConnect);
-        mSocket.off(Socket.EVENT_DISCONNECT, onDisconnect);
-        mSocket.off(Socket.EVENT_CONNECT_ERROR, onConnectError);
-        mSocket.off("message", onMessage);
     }
 
 

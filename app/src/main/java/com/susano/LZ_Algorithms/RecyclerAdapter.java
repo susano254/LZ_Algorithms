@@ -49,7 +49,7 @@ public class RecyclerAdapter extends RecyclerView.Adapter<RecyclerAdapter.TagVie
     @Override
     public void onBindViewHolder(@NonNull RecyclerAdapter.TagViewHolder holder, int position) {
         Tag currentTag = tags.get(position);
-        holder.tag.setText("< " + currentTag.offset + ", " + currentTag.length + ", " + currentTag.nextChar + " >");
+        holder.tag.setText("< " + currentTag.getOffset() + ", " + currentTag.getLength() + ", " + currentTag.getNextChar() + " >");
         holder.tagRoot.startAnimation(animation);
     }
 
