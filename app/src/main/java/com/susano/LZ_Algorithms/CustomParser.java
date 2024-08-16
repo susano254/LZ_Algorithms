@@ -213,7 +213,6 @@ public class CustomParser implements Parser {
         if (!isNamespaceValid) {
             return false;
         }
-        // modify the above switch statement packet.data is either a JsonObject or JsonArray
         switch (packet.type) {
             case 0: // CONNECT
                 return packet.data == null || packet.data instanceof JSONObject;
