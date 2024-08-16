@@ -94,6 +94,10 @@ public class CustomParser implements Parser {
                     // Convert LinkedHashMap back to JSONObject
                     packet.data = new JSONObject((Map) packet.data);
                 }
+                else if(packet.data instanceof ArrayList) {
+                    // Convert ArrayList back to JSONArray
+                    packet.data = new JSONArray((ArrayList) packet.data);
+                }
             } catch (JsonProcessingException e) {
                 e.printStackTrace();
             }
@@ -209,17 +213,18 @@ public class CustomParser implements Parser {
         if (!isNamespaceValid) {
             return false;
         }
+        // modify the above switch statement packet.data is either a JsonObject or JsonArray
         switch (packet.type) {
             case 0: // CONNECT
-                return packet.data == null || packet.data instanceof Object;
+                return packet.data == null || packet.data instanceof JSONObject;
             case 1: // DISCONNECT
                 return packet.data == null;
             case 2: // EVENT
-                return packet.data instanceof ArrayList && ((ArrayList) packet.data).size() > 0;
+                return packet.data instanceof JSONArray && ((JSONArray) packet.data).length() > 0;
             case 3: // ACK
-                return packet.data instanceof ArrayList;
+                return packet.data instanceof JSONArray;
             case 4: // CONNECT_ERROR
-                return packet.data instanceof Object;
+                return packet.data instanceof JSONObject;
             default:
                 return false;
         }
